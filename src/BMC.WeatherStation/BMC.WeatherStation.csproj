@@ -51,12 +51,17 @@
       <DesignTime>True</DesignTime>
       <DependentUpon>Resources.resx</DependentUpon>
     </Compile>
+    <Compile Include="SimpleSerial.cs" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="Gadgeteer" />
     <Reference Include="GHI.Pins, Version=4.3.8.1, Culture=neutral, processorArchitecture=MSIL" />
     <Reference Include="GHIElectronics.Gadgeteer.FEZRaptor, Version=4.3.8.1, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
+    </Reference>
+    <Reference Include="Json.NetMF, Version=1.3.1.2, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\packages\Json.NetMF.1.3.1\lib\netmf43\Json.NetMF.dll</HintPath>
+      <Private>True</Private>
     </Reference>
     <Reference Include="Microsoft.SPOT.Graphics" />
     <Reference Include="Microsoft.SPOT.Hardware" />
@@ -75,6 +80,7 @@
     </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>
+    <None Include="packages.config" />
     <None Include="Program.gadgeteer">
       <Generator>GadgeteerFileCodeGenerator</Generator>
       <LastGenOutput>Program.generated.cs</LastGenOutput>
