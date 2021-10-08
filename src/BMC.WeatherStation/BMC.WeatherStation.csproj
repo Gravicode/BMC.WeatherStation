@@ -55,6 +55,7 @@
   </ItemGroup>
   <ItemGroup>
     <Reference Include="Gadgeteer" />
+    <Reference Include="GHI.Hardware, Version=4.3.8.1, Culture=neutral, processorArchitecture=MSIL" />
     <Reference Include="GHI.Pins, Version=4.3.8.1, Culture=neutral, processorArchitecture=MSIL" />
     <Reference Include="GHIElectronics.Gadgeteer.FEZRaptor, Version=4.3.8.1, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>

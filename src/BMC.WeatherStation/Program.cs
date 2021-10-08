@@ -7,7 +7,7 @@ using Microsoft.SPOT.Presentation.Controls;
 using Microsoft.SPOT.Presentation.Media;
 using Microsoft.SPOT.Presentation.Shapes;
 using Microsoft.SPOT.Touch;
-
+using GHI.Processor;
 using Gadgeteer.Networking;
 using GT = Gadgeteer;
 using GTM = Gadgeteer.Modules;
@@ -38,6 +38,17 @@ namespace BMC.WeatherStation
 
             // Use Debug.Print to show messages in Visual Studio's "Output" window during debugging.
             Debug.Print("Program Started");
+            // Timeout 5 seconds
+            int timeout = 1000 * 5;
+
+            // Enable Watchdog
+            GHI.Processor.Watchdog.Enable(timeout);
+
+            // Start a time counter reset thread
+            WDTCounterReset = new Thread(WDTCounterResetLoop);
+            WDTCounterReset.Start();
+
+
             var th1 = new Thread(new ThreadStart(loop));
             th1.Start();
             //ReadSerial();
@@ -88,6 +99,7 @@ namespace BMC.WeatherStation
         }*/
         void loop()
         {
+
             string ComPort = GHI.Pins.FEZRaptor.Socket10.SerialPortName;
             uart = new SerialPort(ComPort, 9600);
 
@@ -189,6 +201,8 @@ namespace BMC.WeatherStation
                     }
                 }
                 var TimeStr = DateTime.Now.ToString("dd/MM/yy HH:mm");
+                var th2 = new Thread(new ThreadStart(blinkLed));
+                th2.Start();
                 Thread.Sleep(2000);
             }
 
@@ -196,6 +210,29 @@ namespace BMC.WeatherStation
 
         }
 
+        static Thread WDTCounterReset;
+        static void WDTCounterResetLoop()
+        {
+            while (true)
+            {
+                // reset time counter every 3 seconds
+                Thread.Sleep(3000);
+
+                GHI.Processor.Watchdog.ResetCounter();
+            }
+        }
+
+        void blinkLed()
+        {
+            bool state = true;
+            for (int i = 0; i < 6; i++)
+            {
+                Mainboard.SetDebugLED(state);
+                Thread.Sleep(300);
+                state = !state;
+            }
+
+        }
         void getBuffer()                                                                    //Get weather status data
         {
             int index;
