@@ -25,7 +25,8 @@ namespace Weather.Monitor
         {
         }
         static Program app;
-
+        static string SSID = "wifi lemot";
+        static string SSID_Pass = "123qweasd";
         static void Main()
         {
             GpioPin backlight = GpioController.GetDefault().OpenPin(SC20260.GpioPin.PA15);
@@ -165,8 +166,8 @@ namespace Weather.Monitor
 
             WiFiNetworkInterfaceSettings wifiSettings = new WiFiNetworkInterfaceSettings()
             {
-                Ssid = "BMC Makerspace",
-                Password = "123qweasd",
+                Ssid = SSID,
+                Password = SSID_Pass,
             };
 
             wifiSettings.Address = new IPAddress(new byte[] { 192, 168, 1, 43 });
@@ -315,23 +316,23 @@ namespace Weather.Monitor
 
 
         //    }
-            static void RunUDP()
+        static void RunUDP()
         {
             var socket = new System.Net.Sockets.Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
-            //var ip = new IPAddress(new byte[] { 192, 168, 1, 16 });
-            var endPoint = new IPEndPoint(IPAddress.Any, 8888);
-
-            //socket.Connect(endPoint);
+            var ip = new IPAddress(new byte[] { 192, 168, 1, 108 });
+            var endPoint = new IPEndPoint(ip, 8888);
+            
+            socket.Connect(endPoint);
             //var buff = new byte[1000];
             //var remoteEP = new IPEndPoint(IPAddress.Any, 8888);
-            socket.Connect(endPoint);
-            
-            
+            //socket.Connect(endPoint);
+
+
             //while (true)
             //{
             //    try
             //    {
-                    
+
             //        var rec = socket.Receive(buff); // listen on port 8888
             //        if (rec > 0)
             //        {
@@ -346,27 +347,28 @@ namespace Weather.Monitor
 
             //    }
             //}
-                
-                //byte[] bytesToSend = Encoding.UTF8.GetBytes("123");
 
-                while (true)
+            byte[] bytesToSend;
+            var counter = 0;
+            while (true)
+            {
+                bytesToSend = Encoding.UTF8.GetBytes("count-" + counter++);
+                socket.SendTo(bytesToSend, bytesToSend.Length, SocketFlags.None, endPoint);
+                while (socket.Poll(500000, SelectMode.SelectRead))
                 {
-                    //socket.SendTo(bytesToSend, bytesToSend.Length, SocketFlags.None, endPoint);
-                    while (socket.Poll(2000000, SelectMode.SelectRead))
+                    if (socket.Available > 0)
                     {
-                        if (socket.Available > 0)
-                        {
-                            byte[] inBuf = new byte[socket.Available];
-                            EndPoint recEndPoint = new IPEndPoint(IPAddress.Any, 8888);
-                            socket.ReceiveFrom(inBuf, ref recEndPoint);
-                            if (!recEndPoint.Equals(endPoint))// Check if the received packet is from the 192.168.0.2
-                                continue;
-                            Debug.WriteLine(new String(Encoding.UTF8.GetChars(inBuf)));
-                        }
+                        byte[] inBuf = new byte[socket.Available];
+                        EndPoint recEndPoint = new IPEndPoint(IPAddress.Any, 8888);
+                        socket.ReceiveFrom(inBuf, ref recEndPoint);
+                        if (!recEndPoint.Equals(endPoint))// Check if the received packet is from the 192.168.0.2
+                            continue;
+                        Debug.WriteLine(new String(Encoding.UTF8.GetChars(inBuf)));
                     }
-                    Thread.Sleep(100);
                 }
-
+                Thread.Sleep(100);
             }
+
+        }
     }
 }
