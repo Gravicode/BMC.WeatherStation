@@ -3,6 +3,7 @@ using GHIElectronics.TinyCLR.Devices.Gpio;
 using GHIElectronics.TinyCLR.Devices.I2c;
 using GHIElectronics.TinyCLR.Devices.Network;
 using GHIElectronics.TinyCLR.Devices.Spi;
+using GHIElectronics.TinyCLR.Drivers.FocalTech.FT5xx6;
 using GHIElectronics.TinyCLR.Pins;
 using GHIElectronics.TinyCLR.UI;
 using GHIElectronics.TinyCLR.UI.Controls;
@@ -15,6 +16,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
+using Weather.Monitor.Properties;
 
 namespace Weather.Monitor
 {
@@ -24,6 +26,7 @@ namespace Weather.Monitor
         public Program(DisplayController d) : base(d)
         {
         }
+        static Thread udpThread;
         static Program app;
         static string SSID = "wifi lemot";
         static string SSID_Pass = "123qweasd";
@@ -59,11 +62,40 @@ namespace Weather.Monitor
             display.Enable();
 
             var screen = Graphics.FromHdc(display.Hdc);
-            var controller = I2cController.FromName(SC20260.I2cBus.I2c1);
-            //var device = controller.GetDevice(settings);
-            //var controller = I2cController.GetDefault();
             ConnectWifi();
+            
+           
+
             app = new Program(display);
+
+            //touch
+            /*
+            var touch = new FT5xx6Controller(i2cController.GetDevice(FT5xx6Controller.GetConnectionSettings()),
+            GpioController.GetDefault().OpenPin(SC20260.GpioPin.PG9));*/
+            var i2cController = I2cController.FromName(SC20260.I2cBus.I2c1);
+            var device = i2cController.GetDevice(FT5xx6Controller.GetConnectionSettings());
+
+            var irq = GpioController.GetDefault().OpenPin(SC20260.GpioPin.PG9);
+            irq.SetDriveMode(GpioPinDriveMode.InputPullDown);
+
+            var touch = new FT5xx6Controller(device, irq);
+            touch.Orientation = FT5xx6Controller.TouchOrientation.Degrees0; //Rotate touch coordinates.
+
+            touch.TouchUp += (_, e) => {
+                app.InputProvider.RaiseTouch(e.X, e.Y, GHIElectronics.TinyCLR.UI.Input.TouchMessages.Up, DateTime.UtcNow);
+                //app.InputProvider.RaiseButton(btn, btnState, DateTime.UtcNow);
+
+            };
+            touch.TouchDown += (_, e) => {
+                app.InputProvider.RaiseTouch(e.X, e.Y, GHIElectronics.TinyCLR.UI.Input.TouchMessages.Down, DateTime.UtcNow);
+                //app.InputProvider.RaiseButton(btn, btnState, DateTime.UtcNow);
+
+            };
+            touch.TouchMove += (_, e) => {
+                app.InputProvider.RaiseTouch(e.X, e.Y, GHIElectronics.TinyCLR.UI.Input.TouchMessages.Move, DateTime.UtcNow);
+                //app.InputProvider.RaiseButton(btn, btnState, DateTime.UtcNow);
+            };
+
             app.Run(Program.CreateWindow(display));
         }
 
@@ -80,37 +112,36 @@ namespace Weather.Monitor
 
             window.Visibility = Visibility.Visible;
 
+            window.Child = Elements();
+
             return window;
         }
-        /*
+
         private static UIElement Elements()
         {
-            var canvas = new Canvas();
-
-            var txt = new Text(font, "TinyCLR is Great!")
+            var font = Resources.GetFont(Resources.FontResources.NinaB);
+            var txt = new Text(font, "Push me!")
             {
-                ForeColor = Colors.White,
-            };
-
-            var rect = new GHIElectronics.TinyCLR.UI.Shapes.Rectangle(150, 30)
-            {
-                Fill = new SolidColorBrush(Colors.Green),
+                VerticalAlignment = VerticalAlignment.Center,
                 HorizontalAlignment = HorizontalAlignment.Center,
             };
 
-            Canvas.SetLeft(rect, 20);
-            Canvas.SetBottom(rect, 20);
+            var button = new Button()
+            {
+                Child = txt,
+                Width = 100,
+                Height = 40,
+            };
 
-            canvas.Children.Add(rect);
-
-            Canvas.SetLeft(txt, 30);
-            Canvas.SetBottom(txt, 25);
-
-            canvas.Children.Add(txt);
-
-            return canvas;
+            button.Click += Button_Click;
+            return button;
         }
-        */
+
+        private static void Button_Click(object sender, RoutedEventArgs e)
+        {
+            // Add button click event code here...
+        }
+
 
         //static void Main()
         //    {
@@ -211,9 +242,64 @@ namespace Weather.Monitor
             if (address[3] > 0)
             {
                 OpenUrl();
-                RunUDP();
+                udpThread = new Thread(new ThreadStart(RunUDP));
+                udpThread.Start();
             }
         }
+        #region decoder encoder
+        public static string Base64Encode(string plainText)
+        {
+            var plainTextBytes = System.Text.Encoding.UTF8.GetBytes(plainText);
+            return System.Convert.ToBase64String(plainTextBytes);
+        }
+       
+        public static int FromHex(char digit)
+        {
+
+            if ('0' <= digit && digit <= '9')
+            {
+
+                return (int)(digit - '0');
+
+            }
+
+
+
+            if ('a' <= digit && digit <= 'f')
+
+                return (int)(digit - 'a' + 10);
+
+
+
+            if ('A' <= digit && digit <= 'F')
+
+                return (int)(digit - 'A' + 10);
+
+
+
+            throw new ArgumentException("digit");
+
+        }
+
+        public static string Unpack(string input)
+        {
+
+            byte[] b = new byte[input.Length / 2];
+
+
+
+            for (int i = 0; i < input.Length; i += 2)
+            {
+
+                b[i / 2] = (byte)((FromHex(input[i]) << 4) | FromHex(input[i + 1]));
+
+            }
+
+            return new string(Encoding.UTF8.GetChars(b));
+
+        }
+
+        #endregion
         static void OpenUrl()
         {
             var url = "http://www.bing.com/robots.txt";
@@ -257,97 +343,50 @@ namespace Weather.Monitor
             {
             }
         }
-        //static void Loop()
-        //{
-        //    UdpClient udpServer = new UdpClient(8888);
-        //    bool relay = false;
-        //    while (true)
-        //    {
-        //        try
-        //        {
-        //            var remoteEP = new IPEndPoint(IPAddress.Any, 8888);
-        //            var data = udpServer.Receive(ref remoteEP); // listen on port 8888
-
-        //            var datastr = System.Text.Encoding.Default.GetString(data);
-        //            Console.WriteLine("receive data from " + remoteEP.ToString());
-        //            Console.WriteLine("data: " + datastr);
-        //            var obj = JsonConvert.DeserializeObject<RootObject>(datastr);
-        //            if (obj != null)
-        //            {
-        //                byte[] databyte = Convert.FromBase64String(obj.rx.userdata.payload);
-        //                string decodedString = Encoding.UTF8.GetString(databyte);
-        //                var originalValue = Unpack(decodedString);
-        //                Console.WriteLine("unpack :" + originalValue);
-        //                var sensorValue = JsonConvert.DeserializeObject<SensorData>(originalValue);
-        //                sensorValue.Tanggal = DateTime.Now;
-        //                //call power bi api
-        //                SendToPowerBI(sensorValue);
-        //                //send data to gateway
-
-        //                {
-        //                    Transmitter.ObjMoteTx objtx = new Transmitter.ObjMoteTx();
-        //                    objtx.tx = new Transmitter.Tx();
-        //                    objtx.tx.moteeui = "00000000AAABBBEE";
-        //                    objtx.tx.txmsgid = "000000000001";
-        //                    objtx.tx.trycount = 5;
-        //                    objtx.tx.txsynch = false;
-        //                    objtx.tx.ackreq = false;
-
-        //                    //string to hex str, hex str to base64 string
-        //                    relay = !relay;
-        //                    byte[] ba = Encoding.Default.GetBytes("relay:" + (relay ? "1" : "0"));
-        //                    var hexString = BitConverter.ToString(ba);
-        //                    hexString = hexString.Replace("-", "");
-        //                    hexString = Base64Encode(hexString);
-        //                    objtx.tx.userdata = new Transmitter.Userdata() { payload = hexString, port = 5 };//"Njg2NTZjNmM2ZjIwNjM2ZjZkNzA3NTc0NjU3Mg==" -> hello computer
-        //                    var jsonStr = JsonConvert.SerializeObject(objtx);
-        //                    byte[] bytes = Encoding.ASCII.GetBytes(jsonStr);
-        //                    udpServer.Send(bytes, bytes.Length, remoteEP);
-        //                }
-        //            }
-        //        }
-        //        catch (Exception ex)
-        //        {
-        //            Console.WriteLine("error -> " + ex.Message);
-        //        }
-        //        Thread.Sleep(5000);
-
-
-
-
-        //    }
+       
         static void RunUDP()
         {
+            #region udp server
+            //as a server
+            using (Socket serverSocket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp))
+            {
+                EndPoint remoteEndPoint = new IPEndPoint(IPAddress.Any, 8888);
+
+                serverSocket.Bind(remoteEndPoint);
+                while (true)
+                {
+                    if (serverSocket.Poll(-1, SelectMode.SelectRead))
+                    {
+                        byte[] inBuffer = new byte[serverSocket.Available];
+                        int count = serverSocket.ReceiveFrom(inBuffer, ref remoteEndPoint);
+                        string message = new string(Encoding.UTF8.GetChars(inBuffer));
+                        Debug.WriteLine("Received '" + message + "'.");
+                        //deserialize
+                        /*
+                        var obj = (RootObject)GHIElectronics.TinyCLR.Data.Json.JsonConverter.FromBson(inBuffer, typeof(RootObject));
+                        if (obj != null)
+                        {
+                            byte[] databyte = Convert.FromBase64String(obj.rx.userdata.payload);
+                            string decodedString = Encoding.UTF8.GetString(databyte);
+                            var originalValue = Unpack(decodedString);
+                            Debug.WriteLine("unpack :" + originalValue);
+                            //deserialize object n show to UI
+                            //var sensorValue = JsonConvert.DeserializeObject<SensorData>(originalValue);
+                            //sensorValue.Tanggal = DateTime.Now;
+                        }*/
+                    }
+                    Thread.Sleep(500);
+                }
+            }
+            #endregion
+            #region udp client
+            /*
             var socket = new System.Net.Sockets.Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
             var ip = new IPAddress(new byte[] { 192, 168, 1, 108 });
             var endPoint = new IPEndPoint(ip, 8888);
             
             socket.Connect(endPoint);
-            //var buff = new byte[1000];
-            //var remoteEP = new IPEndPoint(IPAddress.Any, 8888);
-            //socket.Connect(endPoint);
-
-
-            //while (true)
-            //{
-            //    try
-            //    {
-
-            //        var rec = socket.Receive(buff); // listen on port 8888
-            //        if (rec > 0)
-            //        {
-            //            var datastr = System.Text.Encoding.UTF8.GetString(buff);
-            //            Debug.WriteLine("receive data from " + remoteEP.ToString());
-            //            Debug.WriteLine("data: " + datastr);
-            //        }
-            //        Thread.Sleep(100);
-            //    }
-            //    catch
-            //    {
-
-            //    }
-            //}
-
+            
             byte[] bytesToSend;
             var counter = 0;
             while (true)
@@ -367,8 +406,8 @@ namespace Weather.Monitor
                     }
                 }
                 Thread.Sleep(100);
-            }
-
+            }*/
+            #endregion
         }
     }
 }

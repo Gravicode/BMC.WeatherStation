@@ -20,18 +20,40 @@ namespace UDPServer
 
         static void Loop()
         {
-            UdpClient udpServer = new UdpClient(8888);
-            var remoteEP = new IPEndPoint(IPAddress.Any, 8888);
-            
+            #region udp client
+            var socket = new System.Net.Sockets.Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
+            var ip = new IPAddress(new byte[] { 192, 168, 1, 101 });
+            var endPoint = new IPEndPoint(ip, 8888);
 
-            //bool relay = false;
+            socket.Connect(endPoint);
+
+            byte[] bytesToSend;
+            var counter = 0;
             while (true)
             {
                 try
                 {
-                    //var ip = new IPAddress(new byte[] { 192, 168, 1, 101 });
+                    var msg = "count-" + counter++;
+                    bytesToSend = Encoding.UTF8.GetBytes(msg);
+                    socket.SendTo(bytesToSend, bytesToSend.Length, SocketFlags.None, endPoint);
+                    Console.WriteLine("sending: "+msg);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine("error -> " + ex.Message);
+                }
+                Thread.Sleep(500);
+            }
+            #endregion
+            #region udp server
+            /*
+            UdpClient udpServer = new UdpClient(8888);
+            var remoteEP = new IPEndPoint(IPAddress.Any, 8888);
 
-
+            while (true)
+            {
+                try
+                {
                     var data = udpServer.Receive(ref remoteEP); // listen on port 8888
 
                     var datastr = System.Text.Encoding.Default.GetString(data);
@@ -41,7 +63,7 @@ namespace UDPServer
                     var dataStr = DateTime.Now.ToString("dd/MMM/yyyy HH:mm:ss");
                     var dBytes = System.Text.Encoding.UTF8.GetBytes(dataStr);
                     udpServer.Send(dBytes,dBytes.Length,remoteEP);
-                    /*
+
                     var obj = JsonConvert.DeserializeObject<RootObject>(datastr);
                     if (obj != null)
                     {
@@ -51,31 +73,31 @@ namespace UDPServer
                         Console.WriteLine("unpack :" + originalValue);
                         var sensorValue = JsonConvert.DeserializeObject<SensorData>(originalValue);
                         sensorValue.Tanggal = DateTime.Now;
-                        //call power bi api
-                        //SendToPowerBI(sensorValue);
-                        //send data to gateway
+                    //    //call power bi api
+                    //    //SendToPowerBI(sensorValue);
+                    //    //send data to gateway
 
-                        {
-                            Transmitter.ObjMoteTx objtx = new Transmitter.ObjMoteTx();
-                            objtx.tx = new Transmitter.Tx();
-                            objtx.tx.moteeui = "00000000AAABBBEE";
-                            objtx.tx.txmsgid = "000000000001";
-                            objtx.tx.trycount = 5;
-                            objtx.tx.txsynch = false;
-                            objtx.tx.ackreq = false;
+                    //    {
+                    //        Transmitter.ObjMoteTx objtx = new Transmitter.ObjMoteTx();
+                    //        objtx.tx = new Transmitter.Tx();
+                    //        objtx.tx.moteeui = "00000000AAABBBEE";
+                    //        objtx.tx.txmsgid = "000000000001";
+                    //        objtx.tx.trycount = 5;
+                    //        objtx.tx.txsynch = false;
+                    //        objtx.tx.ackreq = false;
 
-                            //string to hex str, hex str to base64 string
-                            relay = !relay;
-                            byte[] ba = Encoding.Default.GetBytes("relay:" + (relay ? "1" : "0"));
-                            var hexString = BitConverter.ToString(ba);
-                            hexString = hexString.Replace("-", "");
-                            hexString = Base64Encode(hexString);
-                            objtx.tx.userdata = new Transmitter.Userdata() { payload = hexString, port = 5 };//"Njg2NTZjNmM2ZjIwNjM2ZjZkNzA3NTc0NjU3Mg==" -> hello computer
-                            var jsonStr = JsonConvert.SerializeObject(objtx);
-                            byte[] bytes = Encoding.ASCII.GetBytes(jsonStr);
-                            udpServer.Send(bytes, bytes.Length, remoteEP);
-                        }
-                    }*/
+                    //        //string to hex str, hex str to base64 string
+                    //        relay = !relay;
+                    //        byte[] ba = Encoding.Default.GetBytes("relay:" + (relay ? "1" : "0"));
+                    //        var hexString = BitConverter.ToString(ba);
+                    //        hexString = hexString.Replace("-", "");
+                    //        hexString = Base64Encode(hexString);
+                    //        objtx.tx.userdata = new Transmitter.Userdata() { payload = hexString, port = 5 };//"Njg2NTZjNmM2ZjIwNjM2ZjZkNzA3NTc0NjU3Mg==" -> hello computer
+                    //        var jsonStr = JsonConvert.SerializeObject(objtx);
+                    //        byte[] bytes = Encoding.ASCII.GetBytes(jsonStr);
+                    //        udpServer.Send(bytes, bytes.Length, remoteEP);
+                    //    }
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -87,6 +109,8 @@ namespace UDPServer
 
 
             }
+            */
+            #endregion
         }
     }
 }
