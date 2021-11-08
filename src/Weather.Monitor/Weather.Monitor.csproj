@@ -50,9 +50,6 @@
     <None Include="Resources\NinaB.tinyfnt" />
   </ItemGroup>
   <ItemGroup>
-    <Reference Include="GHIElectronics.TinyCLR.Data.Json, Version=2.1.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\GHIElectronics.TinyCLR.Data.Json.2.1.0\lib\net452\GHIElectronics.TinyCLR.Data.Json.dll</HintPath>
-    </Reference>
     <Reference Include="GHIElectronics.TinyCLR.Devices.Display, Version=2.1.0.0, Culture=neutral, processorArchitecture=MSIL">
       <HintPath>..\packages\GHIElectronics.TinyCLR.Devices.Display.2.1.0\lib\net452\GHIElectronics.TinyCLR.Devices.Display.dll</HintPath>
     </Reference>
@@ -101,6 +98,12 @@
       <Generator>ResXFileCodeGenerator</Generator>
       <LastGenOutput>Resources.Designer.cs</LastGenOutput>
     </EmbeddedResource>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Json.TinyCLR\Json.TinyCLR.csproj">
+      <Project>{13481660-7E5F-4863-9DA7-AEDC05D0D687}</Project>
+      <Name>Json.TinyCLR</Name>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">

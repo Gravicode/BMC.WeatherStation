@@ -28,7 +28,7 @@ namespace Weather.Monitor
         }
         static Thread udpThread;
         static Program app;
-        static string SSID = "wifi lemot";
+        static string SSID = "BMC Makerspace";//"wifi lemot";
         static string SSID_Pass = "123qweasd";
         static void Main()
         {
@@ -362,18 +362,61 @@ namespace Weather.Monitor
                         string message = new string(Encoding.UTF8.GetChars(inBuffer));
                         Debug.WriteLine("Received '" + message + "'.");
                         //deserialize
-                        /*
-                        var obj = (RootObject)GHIElectronics.TinyCLR.Data.Json.JsonConverter.FromBson(inBuffer, typeof(RootObject));
-                        if (obj != null)
+                        try
                         {
-                            byte[] databyte = Convert.FromBase64String(obj.rx.userdata.payload);
-                            string decodedString = Encoding.UTF8.GetString(databyte);
-                            var originalValue = Unpack(decodedString);
-                            Debug.WriteLine("unpack :" + originalValue);
-                            //deserialize object n show to UI
-                            //var sensorValue = JsonConvert.DeserializeObject<SensorData>(originalValue);
-                            //sensorValue.Tanggal = DateTime.Now;
-                        }*/
+                           var obj = Json.TinyCLR.JsonSerializer.DeserializeString(message);
+                            //var obj = (Rootobject)GHIElectronics.TinyCLR.Data.Json.JsonConverter.FromBson(inBuffer, typeof(Rootobject));
+                            if (obj != null && obj is Hashtable)
+                            {
+                                var json = (Hashtable)obj;
+                                foreach (var item in json.Keys)
+                                {
+                                    if(item.ToString() == "rx")
+                                    {
+                                        var rx = (Hashtable)json[item];
+                                        foreach (var item2 in rx.Keys)
+                                        {
+                                            if (item2.ToString() == "userdata")
+                                            {
+                                                var userdata = (Hashtable)rx[item2];
+                                                foreach (var item3 in userdata.Keys)
+                                                {
+                                                    if (item3.ToString() == "payload")
+                                                    {
+                                                        var payload = userdata[item3].ToString();
+                                                        byte[] databyte = Convert.FromBase64String(payload);
+                                                        string decodedString = Encoding.UTF8.GetString(databyte);
+                                                        var originalValue = Unpack(decodedString);
+                                                        var obj2 = Json.TinyCLR.JsonSerializer.DeserializeString(originalValue);
+                                                        var sensorData = (Hashtable)obj2;
+                                                        foreach(var itemSensor in sensorData.Keys)
+                                                        {
+                                                            Debug.WriteLine($"{itemSensor} : {sensorData[itemSensor]}");
+                                                        }
+                                                        goto exit1;
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            exit1:
+                                ;
+                                //byte[] databyte = Convert.FromBase64String(obj.rx.userdata.payload);
+                                //string decodedString = Encoding.UTF8.GetString(databyte);
+                                //var originalValue = Unpack(decodedString);
+                                //Debug.WriteLine("unpack :" + originalValue);
+                                //deserialize object n show to UI
+                                //var sensorValue = JsonConvert.DeserializeObject<SensorData>(originalValue);
+                                //sensorValue.Tanggal = DateTime.Now;
+                            }
+                            
+
+                        }
+                        catch (Exception ex)
+                        {
+                            Debug.WriteLine("err:"+ex);
+                        }
                     }
                     Thread.Sleep(500);
                 }
