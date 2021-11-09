@@ -30,6 +30,7 @@ namespace Weather.Monitor
         static Program app;
         static string SSID = "BMC Makerspace";//"wifi lemot";
         static string SSID_Pass = "123qweasd";
+        static bool DisplayReady = false;
         static void Main()
         {
             GpioPin backlight = GpioController.GetDefault().OpenPin(SC20260.GpioPin.PA15);
@@ -113,51 +114,136 @@ namespace Weather.Monitor
             window.Visibility = Visibility.Visible;
 
             window.Child = Elements();
-
+            DisplayReady = true;
             return window;
         }
-
+        static string IPAddr;
+        static Text []txtSensor;
+        static Text txtTitle;
+        static Text txtUpdate;
+        const string Title = "WEATHER SENSOR WITH LORAWAN";
         private static UIElement Elements()
         {
             var font = Resources.GetFont(Resources.FontResources.NinaB);
-            var txt = new Text(font, "Push me!")
+            var panel = new StackPanel(Orientation.Vertical);
+            var solid = new SolidColorBrush(Colors.Yellow);
+            txtTitle = new Text()
+            {
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Top,
+                ForeColor = Colors.Yellow
+            };
+            txtTitle.Font = font;
+            txtTitle.SetMargin(2);
+            txtTitle.TextContent = $"{Title}";
+            panel.Children.Add(txtTitle);
+
+            txtUpdate = new Text()
+            {
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Top,
+                ForeColor = Colors.Black
+            };
+            txtUpdate.Font = font;
+            txtUpdate.SetMargin(2);
+            txtUpdate.TextContent = $"[TIME]";
+            panel.Children.Add(txtUpdate);
+
+            txtSensor = new Text[8];
+            for (int i = 0; i < txtSensor.Length; i++)
+            {
+                var txt = new Text()
+                {
+                    HorizontalAlignment = HorizontalAlignment.Left,
+                    VerticalAlignment = VerticalAlignment.Top,
+                    ForeColor =  Colors.White
+                };
+                txt.Font = font;
+                
+                txt.SetMargin(5);
+                txt.TextContent = $"Sensor {i} = 0.0";
+                txtSensor[i] = txt;
+
+                panel.Children.Add(txt);
+
+            }
+
+
+
+            //var rect = new GHIElectronics.TinyCLR.UI.Shapes.Rectangle(200, 10)
+            //{
+            //    Fill = new SolidColorBrush(Colors.Green),
+            //    HorizontalAlignment = HorizontalAlignment.Center,
+            //};
+            // Create a scrollviewer
+            /*
+            var scrollViewer = new ScrollViewer
+            {
+                Background = new SolidColorBrush(Colors.Transparent),
+
+                // scroll line by line with 10 pixels per line
+                ScrollingStyle = ScrollingStyle.LineByLine,
+                LineWidth = 10,
+                LineHeight = 10
+            };
+            scrollViewer.TouchUp += ScrollViewer_TouchUp;
+            scrollViewer.Child = panel;
+            */
+            var txtBtn = new Text(font, "RESET")
             {
                 VerticalAlignment = VerticalAlignment.Center,
                 HorizontalAlignment = HorizontalAlignment.Center,
             };
-
+            
             var button = new Button()
             {
-                Child = txt,
+                Child = txtBtn,
                 Width = 100,
-                Height = 40,
+                Height = 35,
             };
 
-            button.Click += Button_Click;
-            return button;
+            button.Click += BtnReset_Click;
+            panel.Children.Add(button);
+
+            return panel;
+            
+        }
+        private static void ScrollViewer_TouchUp(object sender, GHIElectronics.TinyCLR.UI.Input.TouchEventArgs e)
+        {
+            var s = (ScrollViewer)sender;
+
+            s.LineDown();
         }
 
-        private static void Button_Click(object sender, RoutedEventArgs e)
+
+        static void UpdateUI(Hashtable data)
         {
+            if (!DisplayReady) return;
+            int count = 0;
+            Application.Current.Dispatcher.Invoke(TimeSpan.FromMilliseconds(1), _ =>
+            {
+                txtTitle.TextContent = $"{Title} ({IPAddr})";
+                txtTitle.Invalidate();
+                txtUpdate.TextContent = $"updated at {DateTime.Now.ToString("dd-MMM-yyyy HH:mm:ss")}";
+                txtUpdate.Invalidate();
+                foreach (var item in data.Keys)
+                {
+                    txtSensor[count].TextContent = $"{item} = {data[item]}";
+                    txtSensor[count].Invalidate();
+                    count++;
+                }
+                return null;
+            }, null);
+
+        }
+        private static void BtnReset_Click(object sender, RoutedEventArgs e)
+        {
+            GHIElectronics.TinyCLR.Native.Power.Reset();
+
             // Add button click event code here...
         }
 
 
-        //static void Main()
-        //    {
-        //        /*
-        //        GHIElectronics.TinyCLR.Native.Memory.ExtendHeap();
-        //        GHIElectronics.TinyCLR.Native.Power.Reset();
-
-
-        //        GHIElectronics.TinyCLR.Native.Flash.EnableExtendDeployment();
-        //        GHIElectronics.TinyCLR.Native.Power.Reset();
-        //        */
-
-
-        //        //RunUDP();
-        //        Thread.Sleep(Timeout.Infinite);
-        //    }
         static void ConnectWifi()
         {
             var enablePin = GpioController.GetDefault().OpenPin(SC20260.GpioPin.PA8);
@@ -237,8 +323,9 @@ namespace Weather.Monitor
         {
             var ipProperties = sender.GetIPProperties();
             var address = ipProperties.Address.GetAddressBytes();
-            Debug.WriteLine("IP: " + address[0] + "." + address[1] + "." + address[2] +
-                "." + address[3]);
+            IPAddr = address[0] + "." + address[1] + "." + address[2] +
+                "." + address[3];
+            Debug.WriteLine("IP: " + IPAddr);
             if (address[3] > 0)
             {
                 OpenUrl();
@@ -393,6 +480,7 @@ namespace Weather.Monitor
                                                         {
                                                             Debug.WriteLine($"{itemSensor} : {sensorData[itemSensor]}");
                                                         }
+                                                        UpdateUI(sensorData);
                                                         goto exit1;
                                                     }
                                                 }
