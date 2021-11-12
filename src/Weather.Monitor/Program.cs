@@ -3,6 +3,7 @@ using GHIElectronics.TinyCLR.Devices.Gpio;
 using GHIElectronics.TinyCLR.Devices.I2c;
 using GHIElectronics.TinyCLR.Devices.Network;
 using GHIElectronics.TinyCLR.Devices.Spi;
+using GHIElectronics.TinyCLR.Devices.Watchdog;
 using GHIElectronics.TinyCLR.Drivers.FocalTech.FT5xx6;
 using GHIElectronics.TinyCLR.Pins;
 using GHIElectronics.TinyCLR.UI;
@@ -96,8 +97,25 @@ namespace Weather.Monitor
                 app.InputProvider.RaiseTouch(e.X, e.Y, GHIElectronics.TinyCLR.UI.Input.TouchMessages.Move, DateTime.UtcNow);
                 //app.InputProvider.RaiseButton(btn, btnState, DateTime.UtcNow);
             };
+            watchThread = new Thread(new ThreadStart(RunWatchDog));
+            watchThread.Start();
 
             app.Run(Program.CreateWindow(display));
+        }
+        static Thread watchThread;
+        static void RunWatchDog()
+        {
+
+            // Set watchdog to 5 seconds and reset it every 4 seconds
+            var WatchDog = WatchdogController.GetDefault();
+            WatchDog.Enable(5000);
+
+            while (true)
+            {
+                //reset the timer
+                WatchDog.Reset();
+                Thread.Sleep(4000);
+            }
         }
 
         private static Window CreateWindow(DisplayController display)
